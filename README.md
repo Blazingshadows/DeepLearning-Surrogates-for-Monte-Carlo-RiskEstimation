@@ -18,15 +18,19 @@ This approach is useful when the true loss/pricing function is expensive to eval
 - Value at Risk (VaR) at level $\alpha$:
 
   - Definition: the $\alpha$-quantile of the loss distribution.
-  - Empirical estimator used in the code (for a sample of losses $\{l_i\}_{i=1}^n$): sort values ascending and take the index
-    $$\text{idx} = \lceil \alpha n \rceil - 1,\qquad \text{VaR}_\alpha = l_{(\text{idx})}$$
+  - Empirical estimator used in the code (for a sample of losses $\{l_i\}_{i=1}^n$): sort values ascending and take the index.
+
+$$\text{idx} = \lceil \alpha n \rceil - 1,\qquad \text{VaR}_\alpha = l_{(\text{idx})}$$
+
   - (Note: other quantile interpolation rules exist; the script uses a simple empirical index.)
 
 - Conditional Value at Risk (CVaR) at level $\alpha$ (also called Expected Shortfall):
 
   - Definition: the expected loss conditional on loss exceeding the VaR.
   - Formula used in the script (empirical):
-    $$\text{CVaR}_\alpha = \frac{1}{n - \text{idx}}\sum_{j=\text{idx}}^{n-1} l_{(j)} = \text{mean of tail values at or above VaR}.$$ 
+
+$$\text{CVaR}_\alpha = \frac{1}{n - \text{idx}}\sum_{j=\text{idx}}^{n-1} l_{(j)} = \text{mean of tail values at or above VaR}.$$ 
+
   - Intuition: while VaR gives a threshold, CVaR measures the average severity of losses in the worst $(1-\alpha)$ fraction.
 
 - Gaussian Process (GP) surrogate:
@@ -38,7 +42,7 @@ This approach is useful when the true loss/pricing function is expensive to eval
 
 - Acquisition function used for active learning (code formula):
 
-  $$U(x) = \frac{\sigma(x)}{1 + |\mu(x) - \widehat{\text{VaR}}|},$$
+$$U(x) = \frac{\sigma(x)}{1 + |\mu(x) - \widehat{\text{VaR}}|},$$
 
   where $\widehat{\text{VaR}}$ is the current surrogate VaR estimate computed from $\mu(x)$ over the MC pool. Intuition: prefer points that are both uncertain (high $\sigma$) and whose predicted mean is near the current VaR estimate.
 
@@ -104,14 +108,17 @@ Notes:
 
 ## Formulas summary
 
-- Empirical VaR (alpha):
-  $$\text{VaR}_\alpha = l_{(\lceil \alpha n \rceil - 1)}$$
+Empirical VaR (alpha):
 
-- Empirical CVaR (alpha):
-  $$\text{CVaR}_\alpha = \frac{1}{n - \text{idx}}\sum_{j=\text{idx}}^{n-1} l_{(j)}\quad\text{with }\text{idx}=\lceil\alpha n\rceil-1$$
+$$\text{VaR}_\alpha = l_{(\lceil \alpha n \rceil - 1)}$$
 
-- Acquisition score:
-  $$U(x) = \frac{\sigma(x)}{1 + |\mu(x) - \widehat{\text{VaR}}|}$$
+Empirical CVaR (alpha):
+
+$$\text{CVaR}_\alpha = \frac{1}{n - \text{idx}}\sum_{j=\text{idx}}^{n-1} l_{(j)}\quad\text{with }\text{idx}=\lceil\alpha n\rceil-1$$
+
+Acquisition score:
+
+$$U(x) = \frac{\sigma(x)}{1 + |\mu(x) - \widehat{\text{VaR}}|}$$
 
 ## Contact / Next work
 
