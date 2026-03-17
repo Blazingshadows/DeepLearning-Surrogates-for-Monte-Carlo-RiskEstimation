@@ -119,14 +119,3 @@ $$\text{CVaR}_\alpha = \frac{1}{n - \text{idx}}\sum_{j=\text{idx}}^{n-1} l_{(j)}
 Acquisition score:
 
 $$U(x) = \frac{\sigma(x)}{1 + |\mu(x) - \widehat{\text{VaR}}|}$$
-
-## Contact / Next work
-
-If you want, I can also:
-- add a dedicated comparison routine that runs both GP and NN variants multiple times and produces mean ± std comparison plots;
-- add calibration plots, tail scatterplots, and runtime measurements;
-- add a small test harness with smaller `N_candidates` so you can quickly iterate.
-
----
-
-This README is intentionally concise but should give you everything needed to understand the idea, terms, formulas, and how to run the code. If you'd like a more formal write-up (PDF/LaTeX) or additional diagrams, I can generate them next.
