@@ -47,5 +47,3 @@ Thumbs.db
 *.npz
 *.zip
 
-# Local plot/output exports
-Final/Plots/
