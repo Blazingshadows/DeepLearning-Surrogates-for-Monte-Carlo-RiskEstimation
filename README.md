@@ -1,121 +1,110 @@
-# Surrogate-assisted Monte Carlo for Tail Risk (VaR / CVaR)
+# Surrogate-Assisted Monte Carlo for Portfolio Tail Risk (VaR / CVaR)
 
-This repository contains a small research/demo script that shows how to use a surrogate model (Gaussian Process or a Neural Network ensemble) together with active learning to estimate tail risk metrics — Value at Risk (VaR) and Conditional Value at Risk (CVaR) — efficiently without evaluating the expensive oracle everywhere.
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
+[![Scikit-learn](https://img.shields.io/badge/Scikit--learn-GP%20%7C%20MLP-orange)](https://scikit-learn.org/)
+[![NumPy](https://img.shields.io/badge/NumPy-scientific-013243?logo=numpy)](https://numpy.org/)
+[![Paper](https://img.shields.io/badge/Research-Paper-green)](#paper)
 
-## Overview
+---
 
-- Goal: estimate high-quantile tail statistics (VaR and CVaR at level `alpha`, e.g. 0.99) for a loss function while minimizing the number of expensive oracle evaluations.
-- Approach: sample a Monte Carlo pool of candidate inputs, evaluate an initial small training set (oracle), fit a surrogate model, use an acquisition function to actively query informative points (near estimated VaR and with high uncertainty), retrain, and iterate.
+## What this is
 
-This approach is useful when the true loss/pricing function is expensive to evaluate but you can draw a large candidate pool (Monte Carlo) cheaply.
+Running Monte Carlo (MC) simulations to estimate portfolio tail risk (VaR, CVaR) is accurate — but expensive, requiring 10M–100M samples for stable tail statistics. This project asks: **can surrogate models replace most of those evaluations without sacrificing accuracy?**
 
-## Key terms and formulas
+We train Gaussian Process (GP) and Neural Network (NN) ensemble surrogates on a small subset of MC-evaluated points, then use active learning to strategically query the most informative samples near the tail. The result: **sub-1% error on VaR and CVaR estimates at a fraction of the compute cost.**
 
-- Monte Carlo pool: a large set of candidate inputs `X_candidates` (shape: `[N_candidates, dim]`) used as the population for estimating quantiles.
+This work is accompanied by a co-authored research paper (Manipal University Jaipur, 2025).
 
-- Oracle / true loss: the expensive function `L(x)` (in the demo code this is `true_loss(x)`). For each candidate we can (optionally) compute the true loss; in practice we avoid evaluating it everywhere.
+---
 
-- Value at Risk (VaR) at level $\alpha$:
+## Key results
 
-  - Definition: the $\alpha$-quantile of the loss distribution.
-  - Empirical estimator used in the code (for a sample of losses $\{l_i\}_{i=1}^n$): sort values ascending and take the index.
+| Metric | GP Surrogate | NN Ensemble |
+|---|---|---|
+| VaR error (99%) | **< 1%** | ~2–4% (low-sample regime) |
+| CVaR error (99%) | **< 1%** | Higher variance, slower convergence |
+| Convergence | ~100 evaluations | ~250–300 evaluations |
+| Ground truth baseline | 100M MC samples | 100M MC samples |
 
-$$\text{idx} = \lceil \alpha n \rceil - 1,\qquad \text{VaR}_\alpha = l_{(\text{idx})}$$
+**GP outperformed NN** in both accuracy and convergence speed. The NN gap is partly a data constraint — GPs are more sample-efficient in low-budget regimes, which is exactly where surrogates matter most.
 
-  - (Note: other quantile interpolation rules exist; the script uses a simple empirical index.)
+---
 
-- Conditional Value at Risk (CVaR) at level $\alpha$ (also called Expected Shortfall):
+## How it works
 
-  - Definition: the expected loss conditional on loss exceeding the VaR.
-  - Formula used in the script (empirical):
+**Loss function** (nonlinear portfolio loss with linear, quadratic, and sinusoidal components):
 
-$$\text{CVaR}_\alpha = \frac{1}{n - \text{idx}}\sum_{j=\text{idx}}^{n-1} l_{(j)} = \text{mean of tail values at or above VaR}.$$ 
+$$L(\mathbf{x}) = -\left(\mathbf{w}^\top\mathbf{x} + \frac{1}{2}\mathbf{x}^\top\Sigma\mathbf{x} + 0.05\sin(2x_1) + 0.02x_2^2\right)$$
 
-  - Intuition: while VaR gives a threshold, CVaR measures the average severity of losses in the worst $(1-\alpha)$ fraction.
-
-- Gaussian Process (GP) surrogate:
-  - GP returns predictive mean $\mu(x)$ and predictive standard deviation (uncertainty) $\sigma(x)$ at new inputs.
-  - Kernel: Matern kernel with a Constant scale and a small WhiteKernel noise term is used; kernel hyperparameters are optimized (few restarts by default for speed).
-
-- Neural Network (NN) ensemble surrogate:
-  - An ensemble of MLP regressors is trained on bootstrap resamples. Ensemble mean approximates $\mu(x)$ and ensemble standard deviation approximates predictive uncertainty.
-
-- Acquisition function used for active learning (code formula):
-
-$$U(x) = \frac{\sigma(x)}{1 + |\mu(x) - \widehat{\text{VaR}}|},$$
-
-  where $\widehat{\text{VaR}}$ is the current surrogate VaR estimate computed from $\mu(x)$ over the MC pool. Intuition: prefer points that are both uncertain (high $\sigma$) and whose predicted mean is near the current VaR estimate.
-
-## Algorithm (high level)
-
-1. Build a large MC candidate pool `X_candidates`.
-2. (For demonstration) compute `Y_true_full = L(X_candidates)` once to have a reference.
-3. Draw `n_init` initial training points, evaluate the oracle, and fit a surrogate (`gp` or `nn`).
-4. Repeat for `n_iterations`:
-   - Sample an acquisition subset from the remaining pool to limit compute.
-   - Predict surrogate mean and std on that subset.
-   - Compute the surrogate VaR using surrogate means over the full pool.
-   - Compute acquisition score `U(x)` and pick the top `queries_per_iter` points.
-   - Query the oracle at those points, add them to the training set, retrain the surrogate.
-   - Compute estimated VaR/CVaR from surrogate means over the pool and record relative errors vs. the reference.
-5. Plot convergence (error vs number of true evaluations) and distribution comparison.
-
-## Files
-
-- `Code File/surrogate.py` - main script. Key variables to know:
-  - `N_candidates` - size of MC pool
-  - `n_init` - number of initial true evaluations
-  - `n_iterations`, `queries_per_iter` - active-learning loop settings
-  - `SURROGATE` - string flag `'gp'` or `'nn'` to choose the surrogate method
-
-## How to run (environment)
-
-Requirements (minimum):
-
-- Python 3.8+ (script used scikit-learn, numpy, pandas, matplotlib)
-- pip install:
-
-```powershell
-pip install numpy pandas matplotlib scikit-learn
-```
-
-Run the script from the project root:
-
-```powershell
-python "Code File/surrogate.py"
-```
-
-Notes:
-- For a quick demo reduce `N_candidates` and `n_iterations` / `queries_per_iter` to keep runtime low.
-- To switch to the NN ensemble surrogate set `SURROGATE = 'nn'` in the script.
-
-## Interpreting outputs
-
-- Convergence plot (error vs number of true evaluations): shows how the estimated VaR/CVaR get closer to the reference as we add oracle evaluations.
-  - Faster decline = more sample-efficient surrogate + acquisition.
-  - CVaR typically converges slower than VaR because it depends on very extreme tail samples.
-
-- Distribution histogram: compares the empirical loss distribution (from the pool) and the surrogate mean predictions. Look at the upper tail overlap to assess how well the surrogate captures extremes.
-
-## Practical advice and next steps
-
-- Calibration: GPs provide principled uncertainty estimates; verify coverage (percent of true values inside mean ± k*sigma). For NN ensembles this is a heuristic.
-- If CVaR estimates are unstable, consider:
-  - stronger tail-focused acquisition (more queries near VaR),
-  - importance sampling/stratified sampling to enrich tails,
-  - sampling from GP posterior to get confidence bands for VaR/CVaR.
-- For reproducibility run multiple trials (different seeds) and show mean ± std of error curves.
-
-## Formulas summary
-
-Empirical VaR (alpha):
-
-$$\text{VaR}_\alpha = l_{(\lceil \alpha n \rceil - 1)}$$
-
-Empirical CVaR (alpha):
-
-$$\text{CVaR}_\alpha = \frac{1}{n - \text{idx}}\sum_{j=\text{idx}}^{n-1} l_{(j)}\quad\text{with }\text{idx}=\lceil\alpha n\rceil-1$$
-
-Acquisition score:
+**Active learning acquisition function** (queries uncertain points near current VaR estimate):
 
 $$U(x) = \frac{\sigma(x)}{1 + |\mu(x) - \widehat{\text{VaR}}|}$$
+
+**Pipeline:**
+1. Simulate 100M MC scenarios → compute ground truth VaR/CVaR at 99%
+2. Initialize surrogate with 60 training points
+3. Iterate 12 rounds × 20 queries using acquisition function above
+4. Estimate VaR/CVaR from surrogate means over full candidate pool
+5. Track error convergence vs. number of true evaluations
+
+---
+
+## Results
+
+**VaR convergence — GP vs NN:**
+
+![VaR Comparison](plots/Comparison_var.png)
+
+**CVaR convergence — GP vs NN:**
+
+![CVaR Comparison](plots/Comparison_cvar.png)
+
+**GP predicted loss distribution vs ground truth:**
+
+![GP Distribution](plots/100m_gp_predicted_portfolio.png)
+
+**Ground truth loss distribution (100M samples):**
+
+![Ground Truth](plots/ground_truth.png)
+
+> GP accurately captures tail shape near VaR/CVaR thresholds. NN captures the central region well but deviates in the tail — leading to overestimated risk in early iterations.
+
+---
+
+## Surrogates
+
+**Gaussian Process:** Matérn kernel with automatic relevance determination + white noise kernel. Provides calibrated uncertainty estimates used directly in acquisition.
+
+**NN Ensemble:** 5 MLPs with (150, 75) hidden layers, ReLU, bootstrapped training, L2 regularization, early stopping. Ensemble std used as uncertainty proxy.
+
+---
+
+## How to run
+```bash
+git clone https://github.com/Blazingshadows/surrogate-var-cvar
+cd surrogate-var-cvar
+pip install numpy pandas matplotlib scikit-learn
+python src/surrogate.py
+```
+
+Switch surrogate method in `src/surrogate.py`:
+```python
+SURROGATE = 'gp'   # or 'nn'
+```
+
+Reduce `N_candidates` and `n_iterations` for a faster demo run.
+
+---
+
+## Paper
+
+> **Neural and Gaussian Process Surrogates for Fast Monte Carlo VaR and CVaR Estimation**  
+> Aditya Dixit, Aadit Datta — Manipal University Jaipur, 2025
+
+Available in [`paper/`](paper/).
+
+---
+
+## Stack
+
+Python · NumPy · Scikit-learn · Matplotlib · Pandas
