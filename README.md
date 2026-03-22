@@ -53,19 +53,19 @@ $$U(x) = \frac{\sigma(x)}{1 + |\mu(x) - \widehat{\text{VaR}}|}$$
 
 **VaR convergence — GP vs NN:**
 
-![VaR Comparison](plots/Comparison_var.png)
+![VaR Comparison](Plots/Comparison_var.png)
 
 **CVaR convergence — GP vs NN:**
 
-![CVaR Comparison](plots/Comparison_cvar.png)
+![CVaR Comparison](Plots/Comparison_cvar.png)
 
 **GP predicted loss distribution vs ground truth:**
 
-![GP Distribution](plots/100m_gp_predicted_portfolio.png)
+![GP Distribution](Plots/100m_gp_predicted_portfolio.png)
 
 **Ground truth loss distribution (100M samples):**
 
-![Ground Truth](plots/ground_truth.png)
+![Ground Truth](Plots/ground_truth.png)
 
 > GP accurately captures tail shape near VaR/CVaR thresholds. NN captures the central region well but deviates in the tail — leading to overestimated risk in early iterations.
 
@@ -101,7 +101,7 @@ Reduce `N_candidates` and `n_iterations` for a faster demo run.
 > **Neural and Gaussian Process Surrogates for Fast Monte Carlo VaR and CVaR Estimation**  
 > Aditya Dixit, Aadit Datta — Manipal University Jaipur, 2025
 
-Available in [`paper/`](paper/).
+Available in [`Research Paper/`](Research Paper/).
 
 ---
 
